@@ -1,0 +1,208 @@
+version: '3.8'
+
+services:
+  # Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: playful-marketplace-db
+    environment:
+      POSTGRES_DB: playful_marketplace
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - playful-network
+
+  # Redis
+  redis:
+    image: redis:7-alpine
+    container_name: playful-marketplace-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - playful-network
+
+  # Auth Service
+  auth-service:
+    build:
+      context: .
+      dockerfile: services/auth/Dockerfile
+    container_name: playful-marketplace-auth
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=postgres
+      - DB_PASSWORD=password
+      - DB_NAME=playful_marketplace
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - JWT_SECRET=your-super-secret-jwt-key-change-in-production
+      - PORT=8001
+    ports:
+      - "8001:8001"
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - playful-network
+    restart: unless-stopped
+
+  # User Service
+  user-service:
+    build:
+      context: .
+      dockerfile: services/user/Dockerfile
+    container_name: playful-marketplace-user
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=postgres
+      - DB_PASSWORD=password
+      - DB_NAME=playful_marketplace
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - JWT_SECRET=your-super-secret-jwt-key-change-in-production
+      - PORT=8002
+    ports:
+      - "8002:8002"
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - playful-network
+    restart: unless-stopped
+
+  # Product Service
+  product-service:
+    build:
+      context: .
+      dockerfile: services/product/Dockerfile
+    container_name: playful-marketplace-product
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=postgres
+      - DB_PASSWORD=password
+      - DB_NAME=playful_marketplace
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - JWT_SECRET=your-super-secret-jwt-key-change-in-production
+      - PORT=8003
+    ports:
+      - "8003:8003"
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - playful-network
+    restart: unless-stopped
+
+  # Order Service
+  order-service:
+    build:
+      context: .
+      dockerfile: services/order/Dockerfile
+    container_name: playful-marketplace-order
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=postgres
+      - DB_PASSWORD=password
+      - DB_NAME=playful_marketplace
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - JWT_SECRET=your-super-secret-jwt-key-change-in-production
+      - PORT=8004
+    ports:
+      - "8004:8004"
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - playful-network
+    restart: unless-stopped
+
+  # Payment Service
+  payment-service:
+    build:
+      context: .
+      dockerfile: services/payment/Dockerfile
+    container_name: playful-marketplace-payment
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=postgres
+      - DB_PASSWORD=password
+      - DB_NAME=playful_marketplace
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - JWT_SECRET=your-super-secret-jwt-key-change-in-production
+      - PORT=8005
+    ports:
+      - "8005:8005"
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - playful-network
+    restart: unless-stopped
+
+  # Gamification Service
+  gamification-service:
+    build:
+      context: .
+      dockerfile: services/gamification/Dockerfile
+    container_name: playful-marketplace-gamification
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=postgres
+      - DB_PASSWORD=password
+      - DB_NAME=playful_marketplace
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - JWT_SECRET=your-super-secret-jwt-key-change-in-production
+      - PORT=8006
+    ports:
+      - "8006:8006"
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - playful-network
+    restart: unless-stopped
+
+  # API Gateway (Nginx)
+  api-gateway:
+    image: nginx:alpine
+    container_name: playful-marketplace-gateway
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx/ssl:/etc/nginx/ssl
+    depends_on:
+      - auth-service
+      - user-service
+      - product-service
+      - order-service
+      - payment-service
+      - gamification-service
+    networks:
+      - playful-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  playful-network:
+    driver: bridge
